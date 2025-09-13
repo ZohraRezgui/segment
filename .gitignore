@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+*.egg-info/
+
+# PyTorch
+*.pt
+*.pth
+*.ckpt
+
+# Numpy
+*.npy
+
+# Logs
+*.log
+*.csv
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# Mac
+.DS_Store
