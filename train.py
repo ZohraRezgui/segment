@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from config import config as cfg
 from dataset import SARRARP50Dataset
-from model import DiceLoss, SurgicalSegmentationModel
+from model import DiceLoss, FocalLoss, SurgicalSegmentationModel
 
 gc.collect()
 if torch.cuda.is_available():
@@ -126,7 +126,7 @@ def main():
 
     # Datasets
     train_dataset = SARRARP50Dataset(
-        cfg.data_root, split="train", image_size=cfg.img_size, num_classes=cfg.num_classes
+        cfg.data_root, split="train", image_size=cfg.img_size, num_classes=cfg.num_classes, use_augmentation=cfg.use_augmentation
     )
     test_dataset = SARRARP50Dataset(
         cfg.data_root, split="test", image_size=cfg.img_size, num_classes=cfg.num_classes
@@ -141,13 +141,17 @@ def main():
 
 
     # Model, loss, optimizer
-    model = SurgicalSegmentationModel(cfg.num_classes).to(device)
-    for param in model.model.backbone.parameters():
-        param.requires_grad = False
-    criterion = nn.CrossEntropyLoss()
+    model = SurgicalSegmentationModel(cfg.num_classes, cfg.unfreeze_last_block).to(device)
+
+
+    if cfg.combined_loss == "focal":
+        criterion = FocalLoss()
+    else:
+        criterion = nn.CrossEntropyLoss()
+
     dice_loss = DiceLoss()
     optimizer = optim.AdamW(model.parameters(), lr=cfg.lr)
-
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', threshold = 0.001,factor=0.5, patience=2, verbose=True)
     # Training loop
     best_iou = 0
 
@@ -161,7 +165,7 @@ def main():
 
         # Validate
         val_loss, val_iou = validate_epoch(model, test_loader, criterion, dice_loss, device)
-
+        scheduler.step(val_loss)
         print(f"Train Loss: {train_loss:.4f}, Train IoU: {train_iou:.4f}")
         print(f"Val Loss: {val_loss:.4f}, Val IoU: {val_iou:.4f}")
 
@@ -170,7 +174,7 @@ def main():
             best_iou = val_iou
             torch.save(
                 model.state_dict(),
-                os.path.join(cfg.checkpoint_dir, "best_model_ce_dice.pth"),
+                os.path.join(cfg.checkpoint_dir, cfg.save_pth),
             )
             print(f"New best model saved! IoU: {best_iou:.4f}")
 

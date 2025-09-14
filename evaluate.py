@@ -1,10 +1,12 @@
 import csv
+import os
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from config import config as cfg
 from dataset import SARRARP50Dataset
 from model import SurgicalSegmentationModel
 
@@ -95,29 +97,29 @@ def save_results(per_class_iou, per_video_iou, out_csv="iou_results.csv"):
 
 
 if __name__ == "__main__":
-    DATA_ROOT = "/home/zohra/pythonCode/data_machnet"
-    NUM_CLASSES = 10
-    IMAGE_SIZE = 512
-    MODEL_PATH = "best_model_ce_dice.pth"
+    # DATA_ROOT = "/home/zohra/pythonCode/data_machnet"
+    # NUM_CLASSES = 10
+    # IMAGE_SIZE = 512
+    # MODEL_PATH = "best_model_ce_dice.pth"
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = cfg.device
 
     # dataset + dataloader
     test_dataset = SARRARP50Dataset(
-        DATA_ROOT,
+        cfg.data_root,
         split="test",
-        image_size=IMAGE_SIZE,
-        num_classes=NUM_CLASSES,
+        image_size=cfg.img_size,
+        num_classes=cfg.num_classes,
         return_video_id=True,
     )
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)
 
     # load model
-    model = SurgicalSegmentationModel(NUM_CLASSES)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+    model = SurgicalSegmentationModel(cfg.num_classes)
+    model.load_state_dict(torch.load(os.path.join(cfg.checkpoint_dir, cfg.save_pth), map_location=device))
     model = model.to(device)
 
-    per_class_iou, per_video_iou = evaluate(model, test_loader, NUM_CLASSES, device)
+    per_class_iou, per_video_iou = evaluate(model, test_loader, cfg.num_classes, device)
 
     print("\n=== Per-Class IoU ===")
     for cls, iou in per_class_iou.items():
@@ -127,5 +129,4 @@ if __name__ == "__main__":
     for vid, miou in per_video_iou.items():
         print(f"{vid}: {miou:.4f}")
 
-    save_results(per_class_iou, per_video_iou, out_csv="iou_results.csv")
-    print("\nSaved results to iou_results.csv")
+    save_results(per_class_iou, per_video_iou, out_csv=f"iou_results_{os.path.splitext(cfg.save_pth)[0]}.csv")

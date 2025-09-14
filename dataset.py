@@ -1,7 +1,11 @@
 import glob
 import os
+import random
 
+import numpy as np
+import torch
 import torchvision.transforms as transforms
+import torchvision.transforms.functional as TF
 from PIL import Image
 from torch.utils.data import Dataset
 
@@ -14,11 +18,13 @@ class SARRARP50Dataset(Dataset):
         image_size=512,
         num_classes=10,
         return_video_id=False,
+        use_augmentation=False,
     ):
         self.root_dir = root_dir
         self.image_size = image_size
         self.num_classes = num_classes
         self.return_video_id = return_video_id
+        self.use_augmentation = use_augmentation
 
         # Get all video directories for the split
         if split == "train":
@@ -67,26 +73,71 @@ class SARRARP50Dataset(Dataset):
 
         print(f"{split} dataset: {len(self.image_paths)} images found")
 
-        # Transforms
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((image_size, image_size)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
+        self.transform_resize = transforms.Resize(
+            size=(self.image_size, self.image_size)
+        )
+        self.transform_resize_mask = transforms.Resize(
+            (
+                self.image_size,
+                self.image_size,
+            ),
+            interpolation=transforms.InterpolationMode.NEAREST,
         )
 
-        self.mask_transform = transforms.Compose(
-            [
-                transforms.Resize(
-                    (image_size, image_size),
-                    interpolation=transforms.InterpolationMode.NEAREST,
-                ),
-                transforms.PILToTensor(),  # keeps integer values
-            ]
+        self.normalize = transforms.Normalize(
+            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
         )
+
+
+        # # Transforms
+        # self.transform = transforms.Compose(
+        #     [
+        #         transforms.Resize((image_size, image_size)),
+        #         transforms.ToTensor(),
+        #         transforms.Normalize(
+        #             mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+        #         ),
+        #     ]
+        # )
+
+        # self.mask_transform = transforms.Compose(
+        #     [
+        #         transforms.Resize(
+        #             (image_size, image_size),
+        #             interpolation=transforms.InterpolationMode.NEAREST,
+        #         ),
+        #         transforms.PILToTensor()
+        #     ]
+        # )
+    def transform_augment(self, image, mask):
+        # Resize
+        # resize = transforms.Resize(size=(self.image_size, self.image_size))
+        # resize_mask = transforms.Resize((self.image_size, self.image_size,),
+        #     interpolation=transforms.InterpolationMode.NEAREST,
+        # )
+        # image = resize(image)
+        # mask = resize_mask(mask)
+
+        # Random crop
+        i, j, h, w = transforms.RandomCrop.get_params(
+            image, output_size=(self.image_size, self.image_size))
+        image = TF.crop(image, i, j, h, w)
+        mask = TF.crop(mask, i, j, h, w)
+
+        # Random horizontal flipping
+        if random.random() > 0.5:
+            image = TF.hflip(image)
+            mask = TF.hflip(mask)
+
+        # Random vertical flipping
+        if random.random() > 0.5:
+            image = TF.vflip(image)
+            mask = TF.vflip(mask)
+
+        # # Transform to tensor
+        # image = TF.to_tensor(image)
+        # mask = TF.to_tensor(mask)
+        return image, mask
 
     def __len__(self):
         return len(self.image_paths)
@@ -94,16 +145,21 @@ class SARRARP50Dataset(Dataset):
     def __getitem__(self, idx):
         # Load image
         image = Image.open(self.image_paths[idx]).convert("RGB")
-        image = self.transform(image)
+        image = self.transform_resize(image)
 
         # Load mask
         mask = Image.open(self.mask_paths[idx])
         if mask.mode != "L":
             mask = mask.convert("L")
 
-        mask = self.mask_transform(mask)  # shape [1,H,W], integer values
-        mask = mask.squeeze(0).long()
-        # mask = mask.long().squeeze(0)  # keep class indices as-is (0–9)
+        mask = self.transform_resize_mask(mask)
+        if self.use_augmentation:
+            image, mask = self.transform_augment(image, mask)
+
+        image = TF.to_tensor(image)
+        image = self.normalize(image)
+
+        mask = torch.as_tensor(np.array(mask), dtype=torch.long)        # mask = mask.long().squeeze(0)  # keep class indices as-is (0–9)
         # mask = torch.clamp(mask, 0, self.num_classes - 1)  # Ensure valid class range
         if self.return_video_id:
             return image, mask, self.video_ids[idx]
