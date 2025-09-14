@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Unwanted
+preds/
 # Environments
 .env
 .venv
@@ -11,17 +13,16 @@ venv/
 *.egg-info/
 
 # PyTorch
-*.pt
-*.pth
-*.ckpt
+# *.pt
+# *.pth
+# *.ckpt
 
 # Numpy
 *.npy
 
 # Logs
 *.log
-*.csv
-.~lock.*.csv#
+
 
 # Jupyter
 .ipynb_checkpoints/

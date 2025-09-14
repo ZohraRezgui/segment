@@ -1,0 +1,26 @@
+Per-Class IoU
+Class,IoU
+0,0.0000
+1,0.4703
+2,0.5295
+3,0.7685
+4,0.1956
+5,0.1109
+6,0.2958
+7,0.3907
+8,0.0346
+9,0.5356
+
+Per-Video Mean IoU 
+Video,Mean IoU
+video_43,0.3822
+video_48,0.4548
+video_41,0.3737
+video_49,0.3226
+video_50,0.4066
+video_45,0.4615
+video_47,0.3596
+video_46,0.3914
+video_44,0.3783
+video_42,0.3828
+Overall Average IoU,0.3913

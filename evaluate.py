@@ -75,10 +75,10 @@ def evaluate(model, dataloader, num_classes, device):
     per_video_iou = {
         vid: float(np.mean(iou_list)) for vid, iou_list in video_ious.items()
     }
+    overall_iou = float(np.mean(list(per_video_iou.values()))) if per_video_iou else 0.0
+    return per_class_iou, per_video_iou, overall_iou
 
-    return per_class_iou, per_video_iou
-
-def save_results(per_class_iou, per_video_iou, out_csv="iou_results.csv"):
+def save_results(per_class_iou, per_video_iou, overall_iou, out_csv="iou_results.csv"):
     with open(out_csv, "w", newline="") as f:
         writer = csv.writer(f)
 
@@ -95,12 +95,12 @@ def save_results(per_class_iou, per_video_iou, out_csv="iou_results.csv"):
         for vid, miou in per_video_iou.items():
             writer.writerow([vid, f"{miou:.4f}"])
 
+        writer.writerow(["Overall Average IoU", f"{overall_iou:.4f}"])
+
+
 
 if __name__ == "__main__":
-    # DATA_ROOT = "/home/zohra/pythonCode/data_machnet"
-    # NUM_CLASSES = 10
-    # IMAGE_SIZE = 512
-    # MODEL_PATH = "best_model_ce_dice.pth"
+
 
     device = cfg.device
 
@@ -119,7 +119,9 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(os.path.join(cfg.checkpoint_dir, cfg.save_pth), map_location=device))
     model = model.to(device)
 
-    per_class_iou, per_video_iou = evaluate(model, test_loader, cfg.num_classes, device)
+    per_class_iou, per_video_iou, overall_iou = evaluate(
+        model, test_loader, cfg.num_classes, device
+    )
 
     print("\n=== Per-Class IoU ===")
     for cls, iou in per_class_iou.items():
@@ -129,4 +131,7 @@ if __name__ == "__main__":
     for vid, miou in per_video_iou.items():
         print(f"{vid}: {miou:.4f}")
 
-    save_results(per_class_iou, per_video_iou, out_csv=f"iou_results_{os.path.splitext(cfg.save_pth)[0]}.csv")
+    print(f"\n=== Overall Average IoU across all videos: {overall_iou:.4f} ===")
+    os.makedirs(cfg.res_dir, exist_ok=True)
+    save_path = os.path.join(cfg.res_dir, f"iou_results_{os.path.splitext(cfg.save_pth)[0]}.csv")
+    save_results(per_class_iou, per_video_iou, overall_iou, out_csv=save_path)
