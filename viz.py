@@ -75,8 +75,9 @@ def save_colored_masks(mask_folder, output_folder):
     mask_files = sorted([f for f in os.listdir(mask_folder) if f.endswith(".png")])
     for mask_file in mask_files:
         mask_path = os.path.join(mask_folder, mask_file)
-        mask = np.array(Image.open(mask_path))
+        mask = np.array(Image.open(mask_path).convert("L"))
         color_mask = colorize_mask(mask, opaque=True)
+        print(color_mask)
         color_mask.save(os.path.join(output_folder, mask_file))
 
 
