@@ -169,7 +169,7 @@ After inference you can overlay the masks to the images or create a gif by using
 
     ```bash
     python viz.py \
-    --mode color \
+    --mode mask \
     --mask_folder ./preds/video_45 \
     --output_path ./assets/colored_masks/
      ```
