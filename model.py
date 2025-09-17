@@ -11,7 +11,7 @@ from torchvision.models.segmentation import (
 class SurgicalSegmentationModel(nn.Module):
     def __init__(self, num_classes=10, unfreeze_last_block=False):
         """
-        unfreeze_last_layers: int, number of last blocks to unfreeze in backbone
+        unfreeze_last_layers: bool, Unfreeze or not last block
         """
         super().__init__()
 
